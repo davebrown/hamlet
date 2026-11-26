@@ -7,7 +7,7 @@ name = "hamlet-mail"
 version = "0.1.0"
 description = "Private, reproducible email classification corpora"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["python-dotenv>=1.0,<2"]
 
 [project.scripts]
 hamlet = "hamlet.cli:main"

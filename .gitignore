@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+# Ignore local secrets, but keep the template (the final matching rule wins).
 .env
 .env.*
 !.env.example

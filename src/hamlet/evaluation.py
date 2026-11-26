@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from urllib.request import ProxyHandler, Request, build_opener
 
 from .diagnostics import event, failure_fields
+from .config import read_environment
 from .store import private_directory
 
 
@@ -296,15 +297,19 @@ def main(argv=None):
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
-    parser.add_argument("--data-root", type=Path, default=Path("~/hamlet-data"))
+    parser.add_argument("--data-root", type=Path)
     parser.add_argument("--model", default="llama3:latest")
     parser.add_argument("--per-label", type=int, default=1000)
     parser.add_argument("--input-usd-per-million", type=float)
     parser.add_argument("--output-usd-per-million", type=float)
     args = parser.parse_args(argv)
     try:
+        environment = read_environment()
         result = evaluate(
-            args.manifest, args.data_root, model=args.model, per_label=args.per_label,
+            args.manifest,
+            args.data_root if args.data_root is not None else environment.get(
+                "HAMLET_DATA_ROOT", "~/hamlet-data"),
+            model=args.model, per_label=args.per_label,
             input_rate=args.input_usd_per_million, output_rate=args.output_usd_per_million)
     except Exception as error:
         event("evaluation_failed", **failure_fields(error))

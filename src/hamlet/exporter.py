@@ -1,6 +1,5 @@
 import imaplib
 import logging
-import os
 from pathlib import Path
 import re
 import shlex
@@ -9,6 +8,7 @@ import time
 from datetime import datetime
 
 from .diagnostics import event, failure_fields
+from .config import read_environment
 
 
 class ExportError(RuntimeError):
@@ -16,7 +16,8 @@ class ExportError(RuntimeError):
 
 
 
-def credentials(username_var, password_var, credentials_file=None):
+def credentials(username_var, password_var, credentials_file=None, *, environment=None):
+    environment = read_environment() if environment is None else environment
     assignments = {}
     if credentials_file:
         # Parse only literal assignments. Never source executable shell configuration.
@@ -26,8 +27,8 @@ def credentials(username_var, password_var, credentials_file=None):
                 assignments[match[1]] = match[2]
 
     def resolve(name, visited):
-        if name in os.environ:
-            return os.environ[name]
+        if name in environment:
+            return environment[name]
         if name in visited:
             raise ValueError("Circular credential variable reference")
         if name not in assignments:

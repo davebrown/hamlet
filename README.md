@@ -1,15 +1,21 @@
 # Hamlet
 
-Private email corpora for evaluating spam classifiers. Python 3.11+, no runtime
-dependencies. Production classification and deployment are not implemented yet.
+![Hamlet logo](assets/hamlet-large.jpg)
+
+Private email corpora for evaluating spam classifiers. Python 3.11+ with
+`python-dotenv` for local configuration. Production classification and deployment
+are not implemented yet.
 
 See [project context and evaluation policy](docs/project-context.md) for goals,
 release criteria, corpus assumptions, and the distinction between smoke tests
 and final evaluation.
 
-Run from this directory without installing:
+Install into a local virtual environment, then run from this directory:
 
 ```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
 export PYTHONPATH="$PWD/src"
 python3 -m hamlet corpus init
 python3 -m hamlet corpus export --host mail.example.com --account user-a --limit 20
@@ -31,16 +37,25 @@ entire data directory while no Hamlet command is writing to it.
 
 ## Credentials
 
-Set `HAMLET_IMAP_USERNAME`, `HAMLET_IMAP_PASSWORD`, and optionally
-`HAMLET_IMAP_HOST` in the process environment. Never pass passwords as command
-arguments or commit credentials. `.env.example` contains placeholders only;
-Hamlet does not automatically load `.env`.
+Both corpus and evaluation commands automatically read `.env` in the current
+working directory. Run from the project directory to use its configuration.
+Create this local file from `.env.example` if it does not already exist, set
+`HAMLET_DATA_ROOT`, `HAMLET_IMAP_HOST`, `HAMLET_IMAP_USERNAME`, and
+`HAMLET_IMAP_PASSWORD`, and restrict its permissions with `chmod 600 .env`.
+The template contains placeholders only; never commit the real `.env`.
 
-For existing shell configuration, explicitly supply `--credentials-file ~/.bashrc`
+Precedence is explicit command-line options, then existing process environment
+variables, then `.env` values, then built-in defaults. Values are parsed as data,
+never executed; interpolation is disabled so dollar signs in credentials remain
+literal. Loading configuration does not modify the parent or process environment.
+`.gitignore` excludes `.env` and `.env.*`, then explicitly re-includes
+`.env.example` with `!.env.example`.
+
+For legacy shell configuration, explicitly supply `--credentials-file ~/.bashrc`
 and `--username-var NAME --password-var NAME`. Only the two selected literal
 assignments and their simple `$NAME`/`${NAME}` references are resolved. The file
 is never executed; command substitution and other shell expansions are rejected.
-Environment values take precedence.
+Configured environment/`.env` values take precedence over this legacy fallback.
 Keychain integration is deferred; no credential storage is implemented.
 
 ## Export behavior

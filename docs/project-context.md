@@ -153,12 +153,16 @@ must remain distinguishable from provider billing and hypothetical prices.
 
 ## Privacy and operational boundaries
 
-- Code belongs in `~/code/hamlet`; all private data belongs in `~/hamlet-data`.
+- Code belongs in `~/code/hamlet`; private corpus and run data belong in
+  `~/hamlet-data`. Local credentials belong in the ignored project `.env`.
   Never commit raw/derived email, SQLite databases, private manifests, detailed
   run artifacts, mail-bearing logs, credentials, or the original session export.
-- Keep credentials out of source, command-line arguments, and logs. Existing
-  credential-file parsing must never execute shell configuration. Keychain
-  storage is a proposed improvement, not an implemented feature.
+- Keep credentials out of version control, command-line arguments, and logs.
+  Corpus and evaluation commands read `.env` in the working directory, with
+  existing process environment variables taking precedence. Values are parsed
+  without interpolation or execution; `.env.example` is the tracked, secret-free
+  template. Legacy credential-file parsing must never execute shell configuration.
+  Keychain storage is a proposed improvement, not an implemented feature.
 - IMAP export is read-only with verified TLS, read-only folder selection, and
   `BODY.PEEK[]`: no moves, deletions, flag changes, or expunges.
 - No real email has been sent to hosted model providers by Hamlet. Before hosted
@@ -174,8 +178,9 @@ must remain distinguishable from provider billing and hypothetical prices.
 Implemented: read-only resumable export, defensive metadata parsing, private
 SQLite/raw storage, review history, snapshots, integrity checks, report-wrapper
 normalization, thread/campaign grouping, provisional group-disjoint splits,
-prompt v1, local Ollama evaluation, and an aggregate Markdown evaluation log.
-The integrated suite currently has 71 passing tests.
+prompt v1, local Ollama evaluation, local `.env` configuration, and an aggregate
+Markdown evaluation log. The initial repository snapshot passed 71 tests;
+configuration changes add focused regression tests.
 
 The current corpus contains 122,794 folder observations and 122,551 distinct raw
 messages. Normalization extracted 43,934 originals; 1,335 malformed or

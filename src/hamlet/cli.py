@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 
 from .exporter import credentials, export
+from .config import read_environment
 from .diagnostics import event, failure_fields
 from .store import FOLDER_LABELS, SCHEMA_VERSION, Store
 
@@ -25,14 +26,15 @@ def nonnegative(value):
     return number
 
 
-def parser():
+def parser(environment=None):
+    environment = os.environ if environment is None else environment
     root = argparse.ArgumentParser(prog="hamlet")
-    root.add_argument("--data-root", default=os.environ.get("HAMLET_DATA_ROOT", "~/hamlet-data"))
+    root.add_argument("--data-root", default=environment.get("HAMLET_DATA_ROOT", "~/hamlet-data"))
     corpus = root.add_subparsers(dest="area", required=True).add_parser("corpus")
     commands = corpus.add_subparsers(dest="command", required=True)
     commands.add_parser("init")
     remote = commands.add_parser("export")
-    remote.add_argument("--host", default=os.environ.get("HAMLET_IMAP_HOST"))
+    remote.add_argument("--host", default=environment.get("HAMLET_IMAP_HOST"))
     remote.add_argument("--port", type=positive, default=993)
     remote.add_argument("--account", required=True, help="Stable local account alias; not a password")
     remote.add_argument("--folder", action="append", dest="folders")
@@ -129,7 +131,10 @@ def run(args, store):
     if args.command == "export":
         if not args.host:
             raise ValueError("--host or HAMLET_IMAP_HOST is required")
-        user, password = credentials(args.username_var, args.password_var, args.credentials_file)
+        user, password = credentials(
+            args.username_var, args.password_var, args.credentials_file,
+            environment=getattr(args, "environment", None),
+        )
         return export(store, args.host, user, password, args.account,
                       args.folders or list(FOLDER_LABELS), port=args.port,
                       limit=args.limit, max_bytes=args.max_bytes,
@@ -256,15 +261,18 @@ def run(args, store):
 def main(argv=None):
     os.umask(0o077)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    args = parser().parse_args(argv)
+    args = None
     store = None
     try:
+        environment = read_environment()
+        args = parser(environment).parse_args(argv)
+        args.environment = environment
         store = Store(args.data_root)
         result = run(args, store)
         print(json.dumps(result, indent=2))
         return 1 if args.command == "verify" and result["failures"] else 0
     except Exception as error:
-        event("command_failed", level=logging.ERROR, command=args.command,
+        event("command_failed", level=logging.ERROR, command=getattr(args, "command", "configure"),
               **failure_fields(error))
         return 1
     finally:
