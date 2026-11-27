@@ -144,12 +144,15 @@ Framework research compared Inspect AI, Promptfoo, and DeepEval. Keep the small
 local runner initially; revisit Inspect AI if multi-provider orchestration and
 experiment tooling justify its dependencies and sensitive logging controls.
 
-Anthropic and OpenAI API integration is planned but **not implemented**. Use
-direct provider adapters in Hamlet rather than MCP servers in the development
-assistant. Planned controls include exact model IDs, provider-reported usage,
-versioned pricing, preflight estimates, per-run budgets, cumulative spending,
-bounded retries/concurrency, and headroom for in-flight work. Estimated charges
-must remain distinguishable from provider billing and hypothetical prices.
+Anthropic and OpenAI use direct provider adapters in Hamlet, not MCP servers in
+the development assistant. Hosted runs retain the same frozen benchmark and
+prompt, journal each completed result privately, and log completed runs.
+Exact model settings, provider-reported usage and frozen prices are recorded.
+Explicit resilient mode supports bounded transient retries and recovery across
+runner-only changes, preserving unknown charges from interrupted attempts.
+See [the development guide](../DEVELOPMENT.md#hosted-benchmark-paid-opt-in).
+Estimated charges remain distinct from provider billing and hypothetical prices.
+Per-run monetary budgets and cumulative spending limits remain future work.
 
 ## Privacy and operational boundaries
 
@@ -165,9 +168,11 @@ must remain distinguishable from provider billing and hypothetical prices.
   Keychain storage is a proposed improvement, not an implemented feature.
 - IMAP export is read-only with verified TLS, read-only folder selection, and
   `BODY.PEEK[]`: no moves, deletions, flag changes, or expunges.
-- No real email has been sent to hosted model providers by Hamlet. Before hosted
-  evaluation, explicitly decide permitted data, redaction, and acceptable
-  provider retention settings. Local inference fees exclude hardware/electricity.
+- User-authorized hosted evaluation sends bounded rendered email to the selected
+  provider. No mail or raw model output is stored in repository logs. OpenAI
+  requests use `store: false`; this does not assert zero provider retention.
+  Future evaluations still need explicit data-handling authorization.
+  Local inference fees exclude hardware/electricity.
 - Use one corpus writer at a time, back up before migrations, retain immutable
   source bytes, and verify original and derived content hashes.
 - A download byte budget is a **per-run transfer limit**, not a total disk quota.
@@ -178,9 +183,9 @@ must remain distinguishable from provider billing and hypothetical prices.
 Implemented: read-only resumable export, defensive metadata parsing, private
 SQLite/raw storage, review history, snapshots, integrity checks, report-wrapper
 normalization, thread/campaign grouping, provisional group-disjoint splits,
-prompt v1, local Ollama evaluation, local `.env` configuration, and an aggregate
-Markdown evaluation log. The initial repository snapshot passed 71 tests;
-configuration changes add focused regression tests.
+prompt v1, local Ollama and hosted Anthropic/OpenAI evaluation, local `.env`
+configuration, and an aggregate Markdown evaluation log. Synthetic regression
+tests cover provider requests, usage accounting, checkpointing and recovery.
 
 The current corpus contains 122,794 folder observations and 122,551 distinct raw
 messages. Normalization extracted 43,934 originals; 1,335 malformed or
@@ -190,7 +195,7 @@ normalization, label conflicts, or unresolved labels.
 
 Remaining work includes human label audits and critical-ham definitions,
 independent per-user holdouts, isolated SpamAssassin baseline evaluation,
-hosted-provider adapters and spending controls, delivery-path load/failure tests,
+hosted spending controls, delivery-path load/failure tests,
 and production deployment/monitoring. Post-deployment quality monitoring will
 need representative human-labeled samples as well as correction reports,
 technical monitoring, and synthetic probes. Missing user corrections do not

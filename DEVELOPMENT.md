@@ -281,3 +281,82 @@ option, but disable telemetry/update checks for sensitive corpora.
 [DeepEval](https://github.com/confident-ai/deepeval) (Apache-2.0) is more
 judge-oriented and also needs telemetry opt-out. None provides Hamlet's
 leakage-safe splits and statistical release criteria automatically.
+
+## Hosted benchmark (paid, opt-in)
+
+The separate hosted runner sends **real rendered email headers and body text to
+each selected provider**. Confirm that this is permitted before running it.
+It uses the same frozen 1,000-ham/1,000-spam provisional test manifest and
+`spam-v1` / `render_email(max_chars=4000)`; it never resamples. This remains a
+provisional smoke test, **not a release evaluation**.
+
+```sh
+.venv/bin/python -m hamlet.hosted /private/path/to/benchmark.json \
+  --data-root /private/path/to/hamlet-data \
+  --evaluation-log docs/evaluations.md
+# Optional: repeat --model MODEL_ID to select a subset.
+```
+
+By default all seven IDs in `hamlet.providers.MODEL_SPECS` run. Models and
+requests run **sequentially (concurrency 1)**. Exact model settings, prices,
+provider/runner/prompt hashes and manifest hash are frozen in private parameters.
+Set `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` in the project `.env` or process
+environment; never commit them. Configuration precedence matches the local CLI.
+No inference is performed by `--help`.
+
+The first actual benchmark email is the persisted preflight for each model, not
+an additional paid probe. Invalid preflight, missing billing usage, truncation,
+authentication/quota/configuration errors and uncertain transport failures stop
+the entire job. Only explicitly safe rejected HTTP 429 responses receive bounded
+1/2-second backoff (at most three attempts); billable invalid labels are not
+retried. Later invalid labels with complete usage are counted as invalid.
+
+Private `runs/hosted-progress.json` is initialized before inference and updated
+after every result. Per-model `runs/hosted-<hash>/` contains parameters, aggregate
+report, atomic per-row journals and a durable in-flight marker. Files are mode
+0600, directories 0700; artifacts contain labels, hashes and usage metadata, not
+mail, raw output, reasoning text or keys. A data-root-wide exclusive lock prevents
+duplicate writers. Rerunning the identical command validates and resumes the
+persisted prefix; completed requests are not sent again. An in-flight marker
+without a durable result, or a blocked run, requires manual billing/configuration
+review and explicit reconciliation before continuing. Do not delete markers or
+change settings merely to bypass a block: billed work may otherwise be repeated.
+
+For an unattended batch where retrying possibly billed requests is acceptable:
+
+```sh
+caffeinate -i .venv/bin/python -m hamlet.hosted /private/path/to/benchmark.json \
+  --data-root /private/path/to/hamlet-data --resilient
+```
+
+`caffeinate -i` prevents macOS idle sleep only while the command runs; closing the
+laptop lid or forced sleep can still interrupt requests. Omit it on other OSes.
+`--resilient` reuses compatible saved runs even after runner-only changes,
+validating the frozen manifest, prompt, model settings and every saved result.
+Original parameters stay unchanged; execution files record the new code hashes
+and retry policy. Completed predictions are never reissued.
+
+Resilient mode journals each failed attempt before retrying transient network,
+timeout, rate-limit and server failures, up to five attempts per email. Backoff
+is 2/4/8/16 seconds or the provider's longer `Retry-After` (capped at 600 seconds).
+Progress is written before backoff. An interrupted attempt is retained as
+possibly billed work with unknown usage, not silently counted as zero.
+Authentication/quota/configuration failures are not retried. Exhausted retries
+or an invalid preflight block that model, but the batch continues other models.
+Inspect the final status: process completion does not mean every model succeeded.
+Safe diagnostic codes distinguish timeout, DNS, TLS and connection failures
+without retaining provider error text. Fatal configuration failures need repair
+before resuming; repeated retries are not a substitute for that repair.
+
+Reports distinguish active wall throughput (excluding time between invocations)
+from mean provider-request latency (excluding backoff/journaling overhead).
+Active timing also excludes periods when macOS suspends the process.
+Costs are **estimates from actual returned usage and frozen prices**, not local
+zero-cost assumptions or invoices; incomplete/uncertain usage is flagged and
+known partial counts retained. Input already includes cached tokens; output
+already includes reasoning, so neither is added again. Reasoning settings differ
+by model; some providers do not expose a separate reasoning counter, which is
+recorded as unknown rather than invented. Only completed runs append aggregate,
+idempotent rows to the existing evaluation log; no private message IDs are logged.
+Known usage from failed attempts is included once. Reports and log rows explicitly
+warn when unknown attempt charges remain, even if every email was classified.
